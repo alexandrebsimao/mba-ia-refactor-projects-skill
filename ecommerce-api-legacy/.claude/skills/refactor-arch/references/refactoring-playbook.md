@@ -1,47 +1,43 @@
-# Playbook de Refatoração (Padrões de Transformação com Código Antes/Depois)
+# Playbook de Refatoração (Padrões de Transformação Antes / Depois)
 
-Este playbook fornece padrões concretos de transformação para as correções aplicadas na **Fase 3 (Refatoração)** da Skill `refactor-arch`. Cada padrão contém exemplos práticos de código **Antes** e **Depois** em Python e Node.js.
+Este playbook fornece **10 padrões concretos de transformação** com exemplos de código **Antes** e **Depois** aplicáveis à **Fase 3** da Skill `refactor-arch` em múltiplas stacks (Python, Node.js e conceitos portáveis para outras linguagens).
 
 ---
 
-## Padrão 1: Eliminação de SQL Injection com Consultas Parametrizadas
+## Padrão 1: Eliminação de SQL Injection com Queries Parametrizadas
 
-### Antes (Python / Flask)
+### Antes (Vulnerável — Concatenação de Strings)
 ```python
-# VULNERÁVEL: Concatenação direta de strings
-cursor.execute("SELECT * FROM produtos WHERE id = " + str(id))
-cursor.execute("UPDATE usuarios SET nome = '" + nome + "' WHERE id = " + str(id))
+cursor.execute("SELECT * FROM items WHERE id = " + str(item_id))
+cursor.execute("UPDATE items SET name = '" + name + "' WHERE id = " + str(item_id))
 ```
 
-### Depois (Python / Flask)
+### Depois (Seguro — Placeholders Parametrizados)
 ```python
-# SEGURO: Placeholders com tupla de parâmetros
-cursor.execute("SELECT * FROM produtos WHERE id = ?", (id,))
-cursor.execute("UPDATE usuarios SET nome = ? WHERE id = ?", (nome, id))
+cursor.execute("SELECT * FROM items WHERE id = ?", (item_id,))
+cursor.execute("UPDATE items SET name = ? WHERE id = ?", (name, item_id))
 ```
 
 ---
 
 ## Padrão 2: Extração de Credenciais Hardcoded para Módulo de Configuração
 
-### Antes (Node.js)
+### Antes (Inseguro — Segredos Fixos no Código)
 ```javascript
-// INSEGURO: Segredos expostos no código
 const config = {
-    dbPass: "senha_super_secreta_prod_123",
-    paymentGatewayKey: "pk_live_1234567890abcdef",
+    secretKey: "hardcoded-prod-secret",
+    gatewayApiKey: "pk_live_example_key",
     port: 3000
 };
 ```
 
-### Depois (Node.js)
+### Depois (Seguro — Variáveis de Ambiente Nativas sem Dependências Extras)
 ```javascript
-// SEGURO: Carregamento a partir de variáveis de ambiente com fallback
-require('dotenv').config();
-
+// src/config/index.js
+// Lê diretamente de process.env (ou usa dotenv apenas se já estiver no package.json)
 const config = {
-    dbPass: process.env.DB_PASS || "dev_secret_fallback",
-    paymentGatewayKey: process.env.PAYMENT_GATEWAY_KEY || "pk_test_fallback",
+    secretKey: process.env.SECRET_KEY || "dev-fallback-secret-change-me",
+    gatewayApiKey: process.env.GATEWAY_API_KEY || "pk_test_fallback",
     port: parseInt(process.env.PORT, 10) || 3000
 };
 
@@ -50,85 +46,111 @@ module.exports = config;
 
 ---
 
-## Padrão 3: Decomposição de God Class / God Module para MVC
+## Padrão 3: Decomposição de God Class / God Module em Camadas MVC
 
-### Antes (Node.js - Frankenstein Class)
+### Antes (Monolito acoplando DB, Regras e Rotas)
 ```javascript
-class AppManager {
-    initDb() { /* DDL e seeds */ }
-    setupRoutes(app) {
-        app.post('/api/checkout', (req, res) => {
-            // Lógica de banco, validação, gateway e resposta tudo junto
+class MonolithManager {
+    initDb() { /* DDL + seeds */ }
+    registerRoutes(app) {
+        app.post('/orders', (req, res) => {
+            // Validação, query SQL, regra de negócio e resposta no mesmo método
         });
     }
 }
 ```
 
-### Depois (Node.js - MVC Modular)
+### Depois (MVC Modular — Model, Controller e Route)
 ```javascript
-// models/courseModel.js (Model cuida de dados)
+// models/orderModel.js
 const db = require('../database/connection');
-exports.findById = (id) => db.get("SELECT * FROM courses WHERE id = ? AND active = 1", [id]);
+exports.create = (userId, total) =>
+    db.run("INSERT INTO orders (user_id, total) VALUES (?, ?)", [userId, total]);
 
-// controllers/checkoutController.js (Controller cuida de orquestração)
-const courseModel = require('../models/courseModel');
-const enrollmentModel = require('../models/enrollmentModel');
-
-exports.processCheckout = async (req, res, next) => {
+// controllers/orderController.js
+const orderModel = require('../models/orderModel');
+exports.createOrder = async (req, res, next) => {
     try {
-        const { usr, eml, pwd, c_id, card } = req.body;
-        const course = await courseModel.findById(c_id);
-        if (!course) return res.status(404).send("Curso não encontrado");
-        // Orquestra matrícula e pagamento...
-        return res.status(200).json({ msg: "Sucesso", enrollment_id: enrId });
+        const { userId, total } = req.body;
+        if (!userId || total <= 0) return res.status(400).json({ error: "Invalid payload" });
+        const result = await orderModel.create(userId, total);
+        return res.status(201).json({ id: result.lastID });
     } catch (err) {
         next(err);
     }
 };
 
-// routes/checkoutRoutes.js (Routes / Views cuida do mapeamento HTTP)
-const express = require('express');
-const router = express.Router();
-const checkoutController = require('../controllers/checkoutController');
-
-router.post('/checkout', checkoutController.processCheckout);
+// routes/orderRoutes.js
+const router = require('express').Router();
+const orderController = require('../controllers/orderController');
+router.post('/orders', orderController.createOrder);
 module.exports = router;
 ```
 
 ---
 
-## Padrão 4: Transformação de Callback Hell ("Pyramid of Doom") para Async/Await
+## Padrão 4: Extração de "Fat Routes" para Camada Controller
 
-### Antes (Node.js)
+### Antes (Rota Inchada com Transação e Regras de Negócio)
+```python
+@bp.route('/items', methods=['POST'])
+def create_item():
+    data = request.get_json()
+    if not data or len(data.get('title', '')) < 3:
+        return jsonify({'error': 'Invalid title'}), 400
+    item = Item(title=data['title'].strip())
+    db.session.add(item)
+    db.session.commit()
+    return jsonify(item.to_dict()), 201
+```
+
+### Depois (Rota Enxuta + Controller Dedicado)
+```python
+# controllers/item_controller.py
+class ItemController:
+    @staticmethod
+    def create_item():
+        data = request.get_json()
+        title = (data or {}).get('title', '').strip()
+        if len(title) < 3:
+            return jsonify({'error': 'Invalid title'}), 400
+        item = Item(title=title)
+        db.session.add(item)
+        db.session.commit()
+        return jsonify(item.to_dict()), 201
+
+# routes/item_routes.py
+item_bp = Blueprint('items', __name__)
+item_bp.route('/items', methods=['POST'])(ItemController.create_item)
+```
+
+---
+
+## Padrão 5: Callback Hell para Async/Await com Promises
+
+### Antes (Pyramid of Doom)
 ```javascript
-db.get("SELECT * FROM courses WHERE id = ?", [cid], (err, course) => {
-    if (err) return res.status(500).send("Erro DB");
-    db.get("SELECT id FROM users WHERE email = ?", [email], (err, user) => {
-        if (err) return res.status(500).send("Erro DB");
-        db.run("INSERT INTO enrollments...", [user.id, cid], function(err) {
-            if (err) return res.status(500).send("Erro Matrícula");
-            // Mais callbacks aninhados...
+db.get("SELECT * FROM items WHERE id = ?", [id], (err, item) => {
+    if (err) return res.status(500).send("DB Error");
+    db.get("SELECT * FROM users WHERE email = ?", [email], (err, user) => {
+        if (err) return res.status(500).send("DB Error");
+        db.run("INSERT INTO orders (user_id, item_id) VALUES (?, ?)", [user.id, item.id], function(err) {
+            if (err) return res.status(500).send("Insert Error");
+            return res.status(200).json({ orderId: this.lastID });
         });
     });
 });
 ```
 
-### Depois (Node.js)
+### Depois (Wrapper de Promises + Fluxo Linear Async/Await)
 ```javascript
-// Utilizando Promises / util.promisify ou wrapper assíncrono
 try {
-    const course = await db.getAsync("SELECT * FROM courses WHERE id = ?", [cid]);
-    if (!course) return res.status(404).send("Curso não encontrado");
+    const item = await db.get("SELECT * FROM items WHERE id = ?", [id]);
+    if (!item) return res.status(404).json({ error: "Item not found" });
 
-    let user = await db.getAsync("SELECT id FROM users WHERE email = ?", [email]);
-    if (!user) {
-        const hash = hashPassword(pwd);
-        const result = await db.runAsync("INSERT INTO users (name, email, pass) VALUES (?, ?, ?)", [u, email, hash]);
-        user = { id: result.lastID };
-    }
-
-    const enr = await db.runAsync("INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)", [user.id, cid]);
-    res.status(200).json({ msg: "Sucesso", enrollment_id: enr.lastID });
+    const user = await db.get("SELECT * FROM users WHERE email = ?", [email]);
+    const order = await db.run("INSERT INTO orders (user_id, item_id) VALUES (?, ?)", [user.id, item.id]);
+    return res.status(200).json({ orderId: order.lastID });
 } catch (err) {
     next(err);
 }
@@ -136,134 +158,140 @@ try {
 
 ---
 
-## Padrão 5: Otimização de N+1 Queries com JOINs e Eager Loading
+## Padrão 6: Eliminação de N+1 Queries (SQL JOIN e ORM Eager Loading)
 
-### Antes (Python / Flask)
+### Antes (Query Executada Dentro de Loop)
 ```python
-# N+1 Queries: 1 query para pedidos + N queries para itens + N*M queries para produtos
-pedidos = cursor.execute("SELECT * FROM pedidos").fetchall()
-for p in pedidos:
-    cursor2.execute("SELECT * FROM itens_pedido WHERE pedido_id = " + str(p["id"]))
-    for item in cursor2.fetchall():
-        cursor3.execute("SELECT nome FROM produtos WHERE id = " + str(item["produto_id"]))
+# SQL puro (N+1)
+orders = cursor.execute("SELECT * FROM orders").fetchall()
+for order in orders:
+    items = cursor.execute("SELECT * FROM order_items WHERE order_id = ?", (order["id"],)).fetchall()
+
+# ORM (N+1 por lazy loading)
+records = Record.query.all()
+for r in records:
+    owner = User.query.get(r.user_id)
+    count = len(r.children)  # dispara SELECT por iteração se lazy='select'
 ```
 
-### Depois (Python / Flask)
+### Depois (SQL JOIN e ORM Eager Loading)
 ```python
-# Otimizado com JOIN em uma ou duas queries consolidadas
-query = """
-    SELECT p.id as pedido_id, p.usuario_id, p.status, p.total, p.criado_em,
-           i.id as item_id, i.produto_id, i.quantidade, i.preco_unitario,
-           pr.nome as produto_nome
-    FROM pedidos p
-    LEFT JOIN itens_pedido i ON i.pedido_id = p.id
-    LEFT JOIN produtos pr ON pr.id = i.produto_id
-    ORDER BY p.id
-"""
-rows = db.execute(query).fetchall()
-# Agrupamento eficiente em memória sem novas idas ao banco
+# SQL puro (1 consulta consolidada com JOIN)
+rows = cursor.execute("""
+    SELECT o.id AS order_id, o.total, i.product_id, i.quantity
+    FROM orders o
+    LEFT JOIN order_items i ON i.order_id = o.id
+""").fetchall()
+
+# ORM SQLAlchemy (Eager Loading via joinedload / selectinload)
+from sqlalchemy.orm import joinedload, selectinload
+records = Record.query.options(joinedload(Record.owner), selectinload(Record.children)).all()
 ```
 
 ---
 
-## Padrão 6: Correção de Criptografia Insegura e Senhas em Plaintext
+## Padrão 7: Substituição de Criptografia Fraca e Remoção de Vazamento de Senhas
 
-### Antes (Python / Node.js)
+### Antes (MD5 / Plaintext e Senha Exposta em Serialização)
 ```python
-# INSEGURO: MD5 sem salt ou armazenamento em plaintext
-import hashlib
-self.password = hashlib.md5(pwd.encode()).hexdigest()
+def set_password(self, raw):
+    self.password = hashlib.md5(raw.encode()).hexdigest()
+
+def to_dict(self):
+    return {"id": self.id, "email": self.email, "password": self.password}
 ```
 
-### Depois (Python / Werkzeug Security)
+### Depois (Hash Forte com Salt e Serialização Sanitizada)
 ```python
-# SEGURO: PBKDF2 / SHA256 com salting automático padrão do Werkzeug/Flask
 from werkzeug.security import generate_password_hash, check_password_hash
 
-def set_password(self, pwd):
-    self.password = generate_password_hash(pwd)
+def set_password(self, raw):
+    self.password = generate_password_hash(raw)
 
-def check_password(self, pwd):
-    # Compatibilidade retroativa para senhas legadas em MD5 durante a transição
-    if self.password == hashlib.md5(pwd.encode()).hexdigest():
-        return True
-    return check_password_hash(self.password, pwd)
+def check_password(self, raw):
+    return check_password_hash(self.password, raw)
+
+def to_dict(self):
+    return {"id": self.id, "email": self.email}  # nunca incluir password
 ```
 
 ---
 
-## Padrão 7: Substituição de APIs Deprecated (Obsoletas)
+## Padrão 8: Atualização de APIs Deprecated (Multi-Stack)
 
-### 7.1 Python `datetime.utcnow()` (Deprecated no Python 3.12+)
+### Python 3.12+ e SQLAlchemy 2.0+
 ```python
-# ANTES:
+# ANTES (Deprecated)
 from datetime import datetime
-created_at = datetime.utcnow()
+now = datetime.utcnow()
+entity = Entity.query.get(entity_id)
 
-# DEPOIS:
+# DEPOIS (Moderno)
 from datetime import datetime, timezone
-created_at = datetime.now(timezone.utc)
+now = datetime.now(timezone.utc)
+entity = db.session.get(Entity, entity_id)
 ```
 
-### 7.2 Flask-SQLAlchemy `Model.query.get(id)` (Deprecated no SQLAlchemy 2.0+)
-```python
-# ANTES:
-user = User.query.get(user_id)
+### Node.js / Express
+```javascript
+// ANTES (Deprecated)
+const buf = new Buffer(rawString);
+const parsed = url.parse(req.url);
+res.send(400, "Bad Request");
 
-# DEPOIS:
-user = db.session.get(User, user_id)
+// DEPOIS (Moderno)
+const buf = Buffer.from(rawString);
+const parsed = new URL(req.url, "http://localhost");
+res.status(400).send("Bad Request");
 ```
 
 ---
 
-## Padrão 8: Centralização de Tratamento de Erros e Eliminação de Bare Excepts
+## Padrão 9: Tratamento Centralizado de Erros (Fim de Bare Excepts)
 
-### Antes (Python / Flask)
+### Antes (Bare Excepts e Blocos Duplicados)
 ```python
-# Erros engolidos e blocos duplicados em toda rota
 try:
-    # lógica...
+    return jsonify(service.fetch()), 200
 except:
-    return jsonify({'error': 'Erro interno'}), 500
+    return jsonify({"error": "Internal error"}), 500
 ```
 
-### Depois (Python / Flask com Middleware Centralizado)
+### Depois (Middleware / Error Handler Global)
 ```python
 # middlewares/error_handler.py
 from flask import jsonify
 
 def register_error_handlers(app):
     @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({"erro": "Recurso não encontrado", "sucesso": False}), 404
+    def not_found(err):
+        return jsonify({"error": "Resource not found"}), 404
 
     @app.errorhandler(Exception)
-    def handle_exception(e):
-        app.logger.error(f"Erro inesperado: {str(e)}")
-        return jsonify({"erro": str(e), "sucesso": False}), 500
+    def handle_exception(err):
+        app.logger.error(f"Unhandled error: {err}")
+        return jsonify({"error": "Internal server error"}), 500
 ```
 
 ---
 
-## Padrão 9: Proteção de Integridade Referencial e Prevenção de Registros Órfãos
+## Padrão 10: Integridade Referencial Transacional (Prevenção de Registros Órfãos)
 
-### Antes (Node.js)
+### Antes (Deleção Parcial Deixando Órfãos)
 ```javascript
-// Deleta usuário sem limpar tabelas dependentes
-db.run("DELETE FROM users WHERE id = ?", [id]);
+await db.run("DELETE FROM users WHERE id = ?", [userId]);
 ```
 
-### Depois (Node.js)
+### Depois (Deleção em Cascata Dentro de Transação)
 ```javascript
-// Deleção em cascata transacional garantindo integridade
-await db.runAsync("BEGIN TRANSACTION");
+await db.run("BEGIN TRANSACTION");
 try {
-    await db.runAsync("DELETE FROM payments WHERE enrollment_id IN (SELECT id FROM enrollments WHERE user_id = ?)", [id]);
-    await db.runAsync("DELETE FROM enrollments WHERE user_id = ?", [id]);
-    await db.runAsync("DELETE FROM users WHERE id = ?", [id]);
-    await db.runAsync("COMMIT");
+    await db.run("DELETE FROM child_payments WHERE parent_id IN (SELECT id FROM parent_records WHERE user_id = ?)", [userId]);
+    await db.run("DELETE FROM parent_records WHERE user_id = ?", [userId]);
+    await db.run("DELETE FROM users WHERE id = ?", [userId]);
+    await db.run("COMMIT");
 } catch (err) {
-    await db.runAsync("ROLLBACK");
+    await db.run("ROLLBACK");
     throw err;
 }
 ```

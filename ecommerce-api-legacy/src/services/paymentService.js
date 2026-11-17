@@ -1,4 +1,4 @@
-const config = require('../config');
+const APPROVED_CARD_PREFIX = "4";
 
 class PaymentService {
     static maskCard(cardNumber) {
@@ -9,8 +9,9 @@ class PaymentService {
 
     static processPayment(cardNumber, amount) {
         const masked = PaymentService.maskCard(cardNumber);
-        // Regra de negócio: cartões iniciados em 4 são aprovados
-        const status = (typeof cardNumber === 'string' && cardNumber.startsWith("4")) ? "PAID" : "DENIED";
+        const status = (typeof cardNumber === 'string' && cardNumber.startsWith(APPROVED_CARD_PREFIX))
+            ? "PAID"
+            : "DENIED";
         return {
             status,
             amount,

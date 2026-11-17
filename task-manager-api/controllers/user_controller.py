@@ -1,6 +1,7 @@
 from flask import request, jsonify
 import re
 from datetime import datetime
+from sqlalchemy.orm import selectinload
 from database import db
 from models.user import User
 from models.task import Task
@@ -8,7 +9,7 @@ from models.task import Task
 class UserController:
     @staticmethod
     def get_users():
-        users = User.query.all()
+        users = User.query.options(selectinload(User.tasks)).all()
         result = []
         for u in users:
             user_data = {

@@ -1,8 +1,10 @@
 # Template de Relatório de Auditoria Arquitetural
 
-Este documento define o formato padronizado que o relatório da **Fase 2 (Architecture Audit)** deve seguir. A Skill deve gerar a saída no terminal e persistir o arquivo em `reports/audit-project-{1,2,3}.md`.
+Este documento define o formato padronizado obrigatório para a saída da **Fase 2 (Architecture Audit)** da Skill `refactor-arch`.
 
 ---
+
+## Template Padrão
 
 ```markdown
 ================================
@@ -18,12 +20,12 @@ CRITICAL: <Qtd> | HIGH: <Qtd> | MEDIUM: <Qtd> | LOW: <Qtd>
 ## Findings
 
 ### [<SEVERIDADE>] <Nome do Anti-Pattern>
-File: <caminho/do/arquivo>:<linha_inicio>-<linha_fim>
-Description: <Descrição clara e contextualizada do problema encontrado>
-Impact: <Impacto arquitetural, de segurança, manutenibilidade ou performance>
-Recommendation: <Ação corretiva recomendada para a Fase 3>
+File: <caminho/relativo/do/arquivo>:<linha_ou_intervalo>
+Description: <Descrição técnica clara e contextualizada do problema encontrado no código>
+Impact: <Impacto concreto em arquitetura, segurança, performance ou manutenibilidade>
+Recommendation: <Ação corretiva específica a ser executada na Fase 3>
 
-[... Repetir para cada finding identificado, ordenado por severidade: CRITICAL -> HIGH -> MEDIUM -> LOW ...]
+[... Repetir para todos os findings encontrados ...]
 
 ================================
 Total: <Total de achados> findings
@@ -34,8 +36,10 @@ Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]
 
 ---
 
-## Regras de Formatação dos Findings:
-1. **Ordenação Obrigatória**: Os achados devem estar estritamente ordenados da maior para a menor severidade (`CRITICAL` -> `HIGH` -> `MEDIUM` -> `LOW`).
-2. **Localização Exata**: O campo `File` deve conter o caminho relativo do arquivo acompanhado da linha exata ou intervalo de linhas (ex: `models.py:1-350` ou `app.py:8`).
-3. **Mínimo de Findings**: O relatório deve conter no mínimo 5 findings documentados, contendo pelo menos 1 de severidade `CRITICAL` ou `HIGH`.
-4. **Pausa para Confirmação**: A skill deve obrigatoriamente pausar a execução ao final do relatório e solicitar a aprovação explícita do usuário (`[y/n]`) antes de iniciar qualquer modificação no código.
+## Regras Obrigatórias do Relatório
+
+1. **Ordenação Estrita**: Liste todos os achados em ordem decrescente de severidade: `CRITICAL` → `HIGH` → `MEDIUM` → `LOW`.
+2. **Rastreabilidade Exata**: Todo finding deve indicar o caminho relativo real e o número de linha ou intervalo exato (ex: `src/service.js:42-89`, `app.py:8`).
+3. **Consistência de Contadores**: Os números em `## Summary` devem corresponder exatamente à contagem real dos findings listados e somar o valor informado em `Total: <N> findings`.
+4. **Cobertura de APIs Deprecated**: Sempre que o projeto utilizar APIs obsoletas da linguagem ou framework detectado, inclua um finding específico indicando a API obsoleta e o substituto moderno.
+5. **Confirmação Obrigatória**: O relatório deve terminar com a pergunta `Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]` e aguardar a resposta explícita do usuário antes de qualquer edição de arquivo.

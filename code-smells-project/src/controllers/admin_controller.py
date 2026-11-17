@@ -1,14 +1,8 @@
 from flask import jsonify
-from src.database.connection import get_db_connection
+from src.database.connection import reset_db
 
 class AdminController:
     @staticmethod
     def reset_database():
-        db = get_db_connection()
-        cursor = db.cursor()
-        cursor.execute("DELETE FROM itens_pedido")
-        cursor.execute("DELETE FROM pedidos")
-        cursor.execute("DELETE FROM produtos")
-        cursor.execute("DELETE FROM usuarios")
-        db.commit()
+        reset_db()
         return jsonify({"mensagem": "Banco de dados resetado", "sucesso": True}), 200

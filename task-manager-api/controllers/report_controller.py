@@ -1,5 +1,6 @@
 from flask import jsonify
 from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import selectinload
 from database import db
 from models.task import Task
 from models.user import User
@@ -46,7 +47,7 @@ class ReportController:
             Task.updated_at >= seven_days_ago
         ).count()
 
-        users = User.query.all()
+        users = User.query.options(selectinload(User.tasks)).all()
         user_stats = []
         for u in users:
             user_tasks = u.tasks

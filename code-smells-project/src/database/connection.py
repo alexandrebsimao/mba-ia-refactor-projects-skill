@@ -1,5 +1,4 @@
 import sqlite3
-import os
 from flask import g
 from src.config.settings import config
 from werkzeug.security import generate_password_hash
@@ -7,7 +6,7 @@ from werkzeug.security import generate_password_hash
 def get_db_connection():
     """Retorna uma conexão de banco isolada para o contexto da requisição."""
     if "db" not in g:
-        g.db = sqlite3.connect(config.DATABASE_PATH, check_same_thread=False)
+        g.db = sqlite3.connect(config.DATABASE_PATH)
         g.db.row_factory = sqlite3.Row
     return g.db
 
@@ -17,9 +16,19 @@ def close_db_connection(e=None):
     if db is not None:
         db.close()
 
+def reset_db():
+    """Remove todos os registros das tabelas de forma segura e transacional."""
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM itens_pedido")
+    cursor.execute("DELETE FROM pedidos")
+    cursor.execute("DELETE FROM produtos")
+    cursor.execute("DELETE FROM usuarios")
+    db.commit()
+
 def init_db():
     """Inicializa as tabelas e seeds do banco de dados de forma segura."""
-    conn = sqlite3.connect(config.DATABASE_PATH, check_same_thread=False)
+    conn = sqlite3.connect(config.DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 

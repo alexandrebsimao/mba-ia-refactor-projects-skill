@@ -137,30 +137,33 @@ A Skill `refactor-arch` foi desenhada seguindo a convenção moderna de Agent Sk
 
 ### 2. Catálogo de Anti-Patterns
 
-O catálogo em `anti-patterns-catalog.md` inclui **11 anti-patterns** catalogados com critérios objetivos de detecção e classificação:
+O catálogo em `anti-patterns-catalog.md` inclui **14 anti-patterns** agnósticos de tecnologia, distribuídos nas 4 severidades padronizadas com sinais concretos de detecção:
 1. `[CRITICAL] SQL Injection & Execução Arbitrária de SQL` (concatenações em queries e endpoints de backdoor).
-2. `[CRITICAL] Hardcoded Credentials & Sensitive Data Exposure` (segredos em código e vazamento em responses/logs).
-3. `[CRITICAL] God Class / God Module` (arquivos gigantes acumulando responsabilidades divergentes).
-4. `[HIGH] Fat Routes / Business Logic in Controllers` (ausência de camada controladora e rotas inchadas).
-5. `[HIGH] Insecure / Broken Cryptography & Plaintext Passwords` (senhas sem hash, MD5 e algoritmos caseiros).
-6. `[HIGH] Mutable Shared Global State & Memory Leaks` (variáveis de módulo manipuladas concorrentemente).
-7. `[HIGH] Callback Hell / Pyramid of Doom` (aninhamento excessivo em JavaScript).
-8. `[MEDIUM] N+1 Query Problem` (queries em loop sem JOINs ou eager loading).
-9. `[MEDIUM] Falta de Tratamento Centralizado de Erros` (bare excepts e exceptions engolidas).
-10. `[MEDIUM / LOW] Uso de APIs Deprecated` (`datetime.utcnow()` no Python 3.12+ e `Model.query.get()` no SQLAlchemy 2.0+).
-11. `[LOW] Magic Numbers, Magic Strings & Nomenclatura Críptica` (falta de semântica e clareza).
+2. `[CRITICAL] Hardcoded Credentials & Secret Exposure` (segredos literais no código e vazamento em respostas de diagnóstico).
+3. `[CRITICAL] Sensitive Data Exposure` (senhas expostas em serializações e dados de cartão em logs).
+4. `[CRITICAL] God Class / God Module` (arquivos/classes monolíticas acumulando múltiplos domínios e responsabilidades).
+5. `[HIGH] Fat Routes / Business Logic in Transport Layer` (rotas inchadas com regras de negócio ou SQL direto em controllers).
+6. `[HIGH] Insecure / Weak Cryptography & Plaintext Passwords` (senhas em texto puro, MD5/SHA1 sem salt ou crypto caseiro).
+7. `[HIGH] Mutable Shared Global State & Tight Coupling` (variáveis globais mutáveis, conexões sem escopo e acoplamento rígido).
+8. `[HIGH] Callback Hell ("Pyramid of Doom")` (aninhamento excessivo de callbacks assíncronos).
+9. `[MEDIUM] N+1 Query Problem` (queries em loop ou lazy loading não otimizado em listagens/relatórios).
+10. `[MEDIUM] Missing Centralized Error Handling & Bare Exceptions` (bare `except:` e blocos `try/except` duplicados).
+11. `[MEDIUM] Uso de APIs Deprecated (Obsoletas)` (tabela multi-stack cobrindo Python 3.12+, SQLAlchemy 2.0+, Node.js e Express).
+12. `[MEDIUM] Misplaced Domain Responsibilities, Missing Validation & Orphaned Records` (domínios misturados, ausência de validação e deleção sem integridade referencial).
+13. `[LOW] Magic Numbers & Magic Strings` (limiares e regras literais sem constantes nomeadas).
+14. `[LOW] Poor Naming, Debug Prints & Unused Code` (nomes crípticos, `print`/`console.log` de debug e imports/variáveis mortas).
 
 ### 3. Como Garantir a Natureza Agnóstica de Tecnologia
 
-A skill alcança independência de stack ao focar nas **responsabilidades conceituais das camadas MVC**, e não em uma sintaxe específica:
-- **Heurísticas flexíveis**: O arquivo `project-analysis.md` estabelece regras de detecção para Python (Flask, FastAPI, Django), Node.js (Express, NestJS), Go, Java e Ruby.
+A skill alcança independência de stack e portabilidade (copiável entre projetos sem acoplamento) ao focar nas **responsabilidades conceituais das camadas MVC**, sem referenciar nomes de arquivos, tabelas ou segredos específicos de nenhum projeto:
+- **Heurísticas flexíveis**: O arquivo `project-analysis.md` estabelece regras de detecção para Python (Flask, FastAPI, Django), Node.js/TypeScript (Express, Fastify, NestJS, Koa), Go (Gin/Echo/Fiber), Java (Spring Boot), Ruby (Rails/Sinatra), PHP (Laravel) e C# (ASP.NET Core).
 - **Camadas equivalentes**:
-  - `Models`: Abstração de persistência (seja SQLite nativo, ORM SQLAlchemy, Sequelize ou Prisma).
-  - `Controllers`: Funções puras de aplicação e orquestração de regras de negócio.
-  - `Views / Routes`: Adaptação do protocolo HTTP (seja `add_url_rule` / Blueprints no Flask ou `express.Router` no Express).
-  - `Config`: Centralização de variáveis de ambiente (`.env` via `os.getenv` ou `process.env`).
+  - `Models`: Abstração de persistência (SQL nativo parametrizado, SQLAlchemy, Sequelize, Prisma, etc.).
+  - `Controllers`: Orquestração de casos de uso e regras de negócio, sem SQL bruto.
+  - `Views / Routes`: Adaptação do protocolo HTTP (`add_url_rule` / Blueprints no Flask, `express.Router` no Express, etc.).
+  - `Config`: Centralização de variáveis de ambiente nativamente (`os.getenv` / `process.env`) sem exigir dependências extras.
   - `Middlewares`: Interceptação global de erros (`@app.errorhandler` ou Express Error Middleware).
-- **Playbook poliglota**: O arquivo `refactoring-playbook.md` fornece receitas práticas Antes/Depois tanto em Python quanto em Node.js.
+- **Playbook poliglota**: O arquivo `refactoring-playbook.md` fornece **10 padrões concretos** de transformação Antes/Depois em Python e Node.js.
 
 ### 4. Desafios Encontrados e Como Foram Resolvidos
 
@@ -258,15 +261,16 @@ Os relatórios detalhados gerados pela Fase 2 estão disponíveis em:
   │   ├── courseModel.js         # Abstração de cursos ativos
   │   ├── enrollmentModel.js     # Gerenciamento de matrículas
   │   ├── paymentModel.js        # Registro de pagamentos
-  │   └── auditLogModel.js       # Log de auditoria desacoplado
+  │   ├── auditLogModel.js       # Log de auditoria desacoplado
+  │   └── reportModel.js         # Query consolidada com LEFT JOIN para relatório financeiro
   ├── services/
   │   ├── paymentService.js      # Máscara PCI-DSS e simulação de gateway
   │   ├── cryptoService.js       # PBKDF2 com salt via módulo nativo 'crypto'
   │   └── cacheService.js        # Cache em memória estruturado com limite de tamanho
   ├── controllers/
   │   ├── checkoutController.js  # Async/await linear substituindo o callback hell
-  │   ├── reportController.js    # Resolução N+1 com JOIN consolidado
-  │   └── userController.js      # Deleção com integridade referencial
+  │   ├── reportController.js    # Agregação em memória delegando SQL ao reportModel
+  │   └── userController.js      # Deleção com integridade referencial em cascata
   ├── routes/
   │   ├── checkoutRoutes.js      # Mapeamento REST
   │   ├── reportRoutes.js
@@ -299,18 +303,20 @@ Os relatórios detalhados gerados pela Fase 2 estão disponíveis em:
   │   └── category.py            # Model de categorias
   ├── controllers/
   │   ├── task_controller.py     # Eager loading (joinedload) eliminando N+1 + db.session.get()
-  │   ├── user_controller.py     # Operações de usuário desacopladas de HTTP
-  │   ├── category_controller.py # Camada dedicada para CRUD de categorias
-  │   └── report_controller.py   # Agregações otimizadas
+  │   ├── user_controller.py     # Eager loading (selectinload) + operações desacopladas
+  │   ├── category_controller.py # Eager loading (selectinload) + CRUD de categorias
+  │   └── report_controller.py   # Agregações otimizadas com selectinload
   ├── routes/
   │   ├── task_routes.py         # Rotas enxutas delegando para controllers
   │   ├── user_routes.py
-  │   ├── category_routes.py     # Extração de categorias de dentro de report_routes
-  │   └── report_routes.py       # Rotas de relatórios + alias retrocompatível
+  │   ├── category_routes.py     # Extração limpa de categorias de dentro de report_routes
+  │   └── report_routes.py       # Exclusivamente rotas de relatórios (/reports/*)
   ├── middlewares/
   │   └── error_handler.py       # Error handlers globais eliminando bare excepts
-  └── services/
-      └── notification_service.py # Credenciais seguras via config
+  ├── services/
+  │   └── notification_service.py # Credenciais seguras via config
+  └── utils/
+      └── helpers.py             # Higienizado (sem datetime.utcnow, bare excepts ou imports mortos)
   ```
 
 ---
@@ -392,7 +398,7 @@ Test server listening on port 3009
 ]
 ✓ DELETE /api/users/1: {
   status: 200,
-  data: 'Usuário deletado, mas as matrículas e pagamentos ficaram sujos no banco.'
+  data: { msg: 'Usuário e registros associados deletados com sucesso.' }
 }
 
 *** TODOS OS TESTES PASSARAM COM SUCESSO NO PROJETO 2! ***
@@ -420,6 +426,14 @@ Test server listening on port 3009
 
 *** TODOS OS TESTES PASSARAM COM SUCESSO NO PROJETO 3! ***
 ```
+
+---
+
+### 5. Observações sobre o Comportamento da Skill em Stacks Diferentes
+
+- **Python / Flask com SQL bruto (`code-smells-project`)**: A skill detectou corretamente o monolito procedural em 4 arquivos na raiz, identificou vulnerabilidades críticas de SQL Injection e backdoor `/admin/query`, e realizou uma migração completa para `src/` utilizando Flask Blueprints, Application Factory, contexto de requisição (`g`) para SQLite e consultas SQL parametrizadas com `JOIN`.
+- **Node.js / Express com SQLite em memória (`ecommerce-api-legacy`)**: Sem exigir qualquer alteração na skill, a mesma definição identificou a God Class `AppManager`, o Callback Hell de 5–6 níveis e a exposição PCI-DSS no console. Na Fase 3, adaptou o padrão MVC aos idiomas nativos de Node.js/Express (`express.Router`, middleware `(err, req, res, next)`, wrapper de Promises com `async/await` e `crypto.pbkdf2Sync` da stdlib sem adicionar novas dependências externas).
+- **Python / Flask com ORM SQLAlchemy e organização parcial (`task-manager-api`)**: A skill demonstrou capacidade de adaptação incremental — em vez de descartar a estrutura existente (`models/`, `routes/`, `services/`, `utils/`), preservou os modelos ORM, adicionou as camadas ausentes (`config/`, `controllers/`, `middlewares/`), extraiu o domínio de categorias deslocado em `report_routes.py`, atualizou APIs deprecated (`datetime.utcnow()` e `Model.query.get()`) e eliminou consultas N+1 com `joinedload`/`selectinload`.
 
 ---
 

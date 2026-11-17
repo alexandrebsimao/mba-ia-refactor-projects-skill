@@ -1,106 +1,110 @@
 ---
 name: refactor-arch
-description: Analisa, audita e refatora automaticamente qualquer projeto backend legado para o padrão MVC, independente da linguagem e framework.
+description: Analisa, audita e refatora automaticamente qualquer projeto backend legado para o padrão MVC (Model-View-Controller), independente da linguagem ou framework.
 ---
 
-# Skill: Refatoração Arquitetural Automatizada (refactor-arch)
+# Skill: Refatoração Arquitetural Automatizada (`refactor-arch`)
 
-Esta Skill atua como um Arquiteto de Software Especialista encarregado de modernizar codebases legadas através de um processo automatizado em 3 fases sequenciais:
+Atue como um Arquiteto de Software Especialista responsável por analisar, auditar e refatorar qualquer codebase backend para o padrão **MVC (Model-View-Controller)**, de forma agnóstica de tecnologia, preservando integralmente os contratos da aplicação.
 
-1. **Fase 1 — Análise do Projeto**: Mapear a tecnologia, dependências, domínio e arquitetura atual.
-2. **Fase 2 — Auditoria Arquitetural**: Mapear code smells e vulnerabilidades contra o catálogo de anti-patterns, emitir relatório padronizado e pausar para confirmação do usuário.
-3. **Fase 3 — Refatoração e Validação**: Reestruturar o projeto no padrão MVC, eliminar os problemas encontrados e validar a inicialização e endpoints da aplicação.
-
----
-
-## Arquivos de Referência Obrigatórios
-
-Antes de iniciar cada fase, consulte os arquivos de referência localizados no diretório `references/`:
-
-- **[references/project-analysis.md](references/project-analysis.md)**: Heurísticas para detecção de linguagem, framework, banco de dados e arquitetura.
-- **[references/anti-patterns-catalog.md](references/anti-patterns-catalog.md)**: Catálogo com severidades padronizadas (CRITICAL, HIGH, MEDIUM, LOW) e detecção de APIs deprecated.
-- **[references/audit-report-template.md](references/audit-report-template.md)**: Template de saída e regras de formatação do relatório de auditoria.
-- **[references/architecture-guidelines.md](references/architecture-guidelines.md)**: Diretrizes e responsabilidades das camadas do padrão MVC.
-- **[references/refactoring-playbook.md](references/refactoring-playbook.md)**: Padrões de transformação e exemplos de código Antes/Depois.
+Execute rigorosamente as **3 fases sequenciais** abaixo. **Nunca pule fases** e **nunca modifique arquivos antes da confirmação explícita do usuário ao final da Fase 2**.
 
 ---
 
-## Fase 1 — Análise do Projeto (Project Analysis)
+## Arquivos de Referência
 
-### Procedimento:
-1. Inspecione os manifestos do projeto (`requirements.txt`, `package.json`, etc.) para identificar a linguagem e frameworks utilizados.
-2. Mapeie a arquitetura atual e as entidades de banco de dados (`loja.db`, `tasks.db`, queries `CREATE TABLE`, models ORM).
-3. Identifique o domínio da aplicação (ex: E-commerce API, LMS com Checkout, Task Manager API).
-4. Conte os arquivos fonte analisados e estime as linhas de código.
-5. Emita o sumário padronizado no terminal:
+Consulte os documentos em `references/` antes de executar cada fase:
 
-```
+- **[references/project-analysis.md](references/project-analysis.md)** — Heurísticas para detecção de linguagem, framework, banco de dados, domínio e arquitetura atual (Fase 1).
+- **[references/anti-patterns-catalog.md](references/anti-patterns-catalog.md)** — Catálogo de anti-patterns, sinais de detecção, severidades (CRITICAL, HIGH, MEDIUM, LOW) e APIs deprecated (Fase 2).
+- **[references/audit-report-template.md](references/audit-report-template.md)** — Template obrigatório do relatório de auditoria (Fase 2).
+- **[references/architecture-guidelines.md](references/architecture-guidelines.md)** — Regras e responsabilidades das camadas do padrão MVC alvo e adaptação por maturidade do projeto (Fase 3).
+- **[references/refactoring-playbook.md](references/refactoring-playbook.md)** — Padrões concretos de transformação com exemplos Antes/Depois multi-stack (Fase 3).
+
+---
+
+## Fase 1 — Análise do Projeto (Somente Leitura)
+
+Consulte `references/project-analysis.md` e execute:
+
+1. Liste a árvore de arquivos do projeto ignorando diretórios de dependências, caches, ambientes virtuais e controle de versão (`node_modules/`, `.venv/`, `venv/`, `__pycache__/`, `.git/`, `.claude/`).
+2. Inspecione manifestos e arquivos de configuração (`requirements.txt`, `pyproject.toml`, `package.json`, `go.mod`, `pom.xml`, `Gemfile`, etc.) para detectar **linguagem**, **framework (com versão)** e **dependências principais**.
+3. Leia os arquivos-fonte para identificar:
+   - **Domínio da aplicação** (a partir dos endpoints, entidades e regras de negócio).
+   - **Arquitetura atual** (monolito procedural, God Class única, arquitetura parcialmente em camadas, etc.).
+   - **Banco de dados e tabelas/modelos** (SQL DDL, ORM models, drivers).
+   - **Contratos de API existentes** (rotas, métodos HTTP, payloads e formatos de resposta que devem ser preservados).
+4. Conte exatamente quantos arquivos-fonte foram analisados e o total aproximado de linhas de código.
+5. Imprima o sumário no formato exato abaixo:
+
+```text
 ================================
 PHASE 1: PROJECT ANALYSIS
 ================================
 Language:      <Linguagem detectada>
 Framework:     <Framework e versão>
 Dependencies:  <Principais dependências>
-Domain:        <Domínio detectado>
-Architecture:  <Classificação da arquitetura atual>
-Source files:  <Quantidade de arquivos analisados>
-DB tables:     <Tabelas ou modelos detectados>
+Domain:        <Descrição concisa do domínio da aplicação>
+Architecture:  <Descrição da arquitetura atual encontrada>
+Source files:  <N> files analyzed
+DB tables:     <lista de tabelas/coleções/modelos detectados>
 ================================
 ```
 
 ---
 
-## Fase 2 — Auditoria Arquitetural (Architecture Audit)
+## Fase 2 — Auditoria Arquitetural (Somente Leitura)
 
-### Procedimento:
-1. Leia e analise todos os arquivos de código-fonte do projeto.
-2. Cruze o código contra o catálogo em `references/anti-patterns-catalog.md`, verificando:
-   - **CRITICAL**: SQL Injection, queries arbitrárias, credenciais hardcoded, senhas expostas, God Classes.
-   - **HIGH**: Regras de negócio em rotas/controllers, criptografia insegura, estado global mutável, callback hell.
-   - **MEDIUM**: Queries N+1, falta de tratamento centralizado de erros, entidades órfãs.
-   - **LOW**: APIs obsoletas/deprecated (`datetime.utcnow()`, `Model.query.get()`), números mágicos, nomes crípticos.
-3. Classifique cada finding identificando o arquivo exato e linha ou intervalo de linhas.
-4. Ordene os findings rigorosamente da maior severidade para a menor (`CRITICAL` -> `HIGH` -> `MEDIUM` -> `LOW`).
-5. Gere o relatório formatado conforme `references/audit-report-template.md`.
-6. Salve uma cópia do relatório gerado na pasta de relatórios `reports/audit-project-<N>.md`.
-7. **Ponto de Parada Obrigatório**:
-   Exiba a pergunta de confirmação e aguarde a resposta do usuário antes de prosseguir:
-   ```
-   Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]
-   ```
+Consulte `references/anti-patterns-catalog.md` e `references/audit-report-template.md` e execute:
+
+1. Analise linha a linha todos os arquivos-fonte mapeados na Fase 1, sem modificar nenhum arquivo.
+2. Cruze o código contra o catálogo de anti-patterns, verificando obrigatoriamente:
+   - **CRITICAL**: SQL Injection / execução arbitrária de SQL, credenciais hardcoded, exposição de segredos ou dados sensíveis em respostas/logs, God Class / God Module.
+   - **HIGH**: Regras de negócio pesadas em rotas/controllers ("Fat Routes"), acoplamento direto ao banco em controllers, ausência de injeção/desacoplamento, criptografia fraca/caseira ou senhas em texto plano, estado global mutável, Callback Hell.
+   - **MEDIUM**: Queries N+1, ausência de tratamento centralizado de erros / bare `except:`, validações ausentes ou duplicação excessiva de código, violação de integridade referencial (registros órfãos), uso de APIs deprecated.
+   - **LOW**: Magic numbers / magic strings, nomenclatura críptica, `print`/`console.log` de debug e imports não utilizados.
+3. Para cada achado, registre o **caminho relativo exato do arquivo e os números de linha precisos** (`arquivo:linha` ou `arquivo:inicio-fim`).
+4. Ordene todos os findings estritamente da maior para a menor severidade: **CRITICAL → HIGH → MEDIUM → LOW**.
+5. Imprima o relatório completo seguindo fielmente `references/audit-report-template.md`.
+6. **PARADA OBRIGATÓRIA PARA CONFIRMAÇÃO**:
+   - **NUNCA** edite, crie ou remova arquivos durante as Fases 1 e 2.
+   - Encerre o turno exibindo exatamente a pergunta abaixo e aguarde a resposta do usuário:
+     ```text
+     Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]
+     ```
+   - Se o usuário responder `n` (ou recusar), finalize a execução sem alterar nenhum arquivo.
 
 ---
 
-## Fase 3 — Refatoração e Validação (Refactoring & Validation)
+## Fase 3 — Refatoração para MVC e Validação
 
-### Procedimento:
-Após a confirmação (`y`), execute a refatoração completa aplicando as diretrizes de `references/architecture-guidelines.md` e o playbook de `references/refactoring-playbook.md`:
+Somente após confirmação explícita (`y`) do usuário, consulte `references/architecture-guidelines.md` e `references/refactoring-playbook.md` e execute:
 
-1. **Reestruturação em Camadas MVC**:
-   - `config/`: Centralizar configurações lendo de variáveis de ambiente (`.env`).
-   - `database/`: Isolar conexão com banco e gerenciamento de transações.
-   - `models/`: Implementar modelos com queries parametrizadas ou ORM limpo.
-   - `controllers/`: Implementar controllers desacoplados de HTTP puro, contendo as regras de negócio.
-   - `routes/` (ou `views/`): Implementar rotas limpas mantendo 100% dos contratos e endpoints originais.
-   - `middlewares/`: Criar manipulador global de erros e middlewares necessários.
-   - `app.py` / `app.js`: Composition root simplificado.
-2. **Correção de Todos os Anti-Patterns**:
-   - Eliminar SQL Injection e queries arbitrárias.
-   - Hash seguro de senhas com salting.
-   - Eliminar N+1 queries com JOINs ou batching.
-   - Substituir APIs deprecated por versões modernas suportadas.
-3. **Validação da Aplicação**:
-   - Inicializar o servidor da aplicação em background.
-   - Testar a resposta de cada endpoint original (rotas GET, POST, PUT, DELETE, health check, relatórios).
-   - Validar que a aplicação inicia sem erros e que zero anti-patterns permanecem.
-4. Imprimir o sumário final da refatoração:
+1. **Adapte a Estratégia ao Contexto do Projeto**:
+   - **Monolito desestruturado ou God Class**: crie a estrutura MVC completa (`config/`, `database/`, `models/`, `controllers/`, `routes/` ou `views/`, `middlewares/`, entry point limpo) e remova os arquivos monolíticos obsoletos.
+   - **Projeto parcialmente organizado**: preserve o que já funciona bem, crie as camadas ausentes (ex: `controllers/`, `config/`, `middlewares/`), extraia regras de negócio de rotas inchadas, corrija módulos com domínios misturados e elimine todos os anti-patterns sem quebrar a organização existente.
+2. **Aplique as Camadas MVC e Elimine os Findings**:
+   - **Config**: extraia todas as credenciais e parâmetros de ambiente para um módulo de configuração lendo variáveis de ambiente com fallbacks seguros (sem introduzir dependências não instaladas).
+   - **Models**: isole toda persistência e consultas SQL/ORM nos Models, usando queries parametrizadas, JOINs/eager loading (eliminando N+1), hashing seguro de senhas e omitindo campos sensíveis da serialização.
+   - **Controllers**: concentre o fluxo de aplicação e regras de negócio nos Controllers, **sem SQL bruto** e sem acesso direto a drivers de banco.
+   - **Views / Routes**: mantenha rotas enxutas, preservando **100% dos endpoints, métodos HTTP e contratos originais**.
+   - **Middlewares / Error Handlers**: implemente tratamento centralizado de erros e remova bare `except:` / blocos repetitivos.
+   - **APIs Deprecated**: substitua todas as chamadas obsoletas detectadas pelo equivalente moderno da stack.
+   - **Entry Point**: mantenha um composition root limpo que inicializa banco, registra middlewares e conecta rotas.
+3. **Verificação Pós-Refatoração (Zero Anti-Patterns)**:
+   - Revise os arquivos finais garantindo que nenhum anti-pattern da Fase 2 permaneceu (incluindo arquivos auxiliares como `utils/`, `seed`, `services/`).
+4. **Validação Funcional Obrigatória**:
+   - Verifique que a aplicação inicia sem erros de sintaxe, importação ou runtime.
+   - Exercite os endpoints originais (via test client nativo do framework ou subindo o servidor em background, executando requisições HTTP e encerrando o processo ao final).
+   - Se qualquer erro ocorrer, corrija e valide novamente antes de concluir.
+5. **Emita o Sumário Final**:
 
-```
+```text
 ================================
 PHASE 3: REFACTORING COMPLETE
 ================================
 ## New Project Structure
-<árvore de diretórios criada>
+<árvore real dos diretórios e arquivos criados/refatorados>
 
 ## Validation
   ✓ Application boots without errors

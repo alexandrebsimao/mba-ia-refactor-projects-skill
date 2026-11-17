@@ -5,7 +5,7 @@ class UserController {
         try {
             const { id } = req.params;
             await UserModel.deleteWithCascade(id);
-            return res.send("Usuário deletado, mas as matrículas e pagamentos ficaram sujos no banco.");
+            return res.status(200).json({ msg: "Usuário e registros associados deletados com sucesso." });
         } catch (err) {
             next(err);
         }

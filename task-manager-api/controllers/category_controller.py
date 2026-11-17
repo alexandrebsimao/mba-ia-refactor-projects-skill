@@ -1,12 +1,12 @@
 from flask import request, jsonify
+from sqlalchemy.orm import selectinload
 from database import db
 from models.category import Category
-from models.task import Task
 
 class CategoryController:
     @staticmethod
     def get_categories():
-        categories = Category.query.all()
+        categories = Category.query.options(selectinload(Category.tasks)).all()
         result = []
         for c in categories:
             cat_data = c.to_dict()
