@@ -1,8 +1,9 @@
 from flask import jsonify
-from src.models.relatorio_model import RelatorioModel
+from src.services.relatorio_service import RelatorioService
+
 
 class RelatorioController:
     @staticmethod
     def relatorio_vendas():
-        relatorio = RelatorioModel.get_vendas_data()
+        relatorio = RelatorioService.gerar_relatorio_vendas()
         return jsonify({"dados": relatorio, "sucesso": True}), 200

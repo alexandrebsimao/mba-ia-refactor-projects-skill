@@ -80,24 +80,29 @@ Consulte `references/anti-patterns-catalog.md` e `references/audit-report-templa
 
 Somente após confirmação explícita (`y`) do usuário, consulte `references/architecture-guidelines.md` e `references/refactoring-playbook.md` e execute:
 
-1. **Adapte a Estratégia ao Contexto do Projeto**:
-   - **Monolito desestruturado ou God Class**: crie a estrutura MVC completa (`config/`, `database/`, `models/`, `controllers/`, `routes/` ou `views/`, `middlewares/`, entry point limpo) e remova os arquivos monolíticos obsoletos.
-   - **Projeto parcialmente organizado**: preserve o que já funciona bem, crie as camadas ausentes (ex: `controllers/`, `config/`, `middlewares/`), extraia regras de negócio de rotas inchadas, corrija módulos com domínios misturados e elimine todos os anti-patterns sem quebrar a organização existente.
-2. **Aplique as Camadas MVC e Elimine os Findings**:
+1. **Rastreabilidade 1-para-1 com a Fase 2 (Aplicação Integral das Recomendações)**:
+   - Percorra **cada finding** do relatório da Fase 2 e aplique sua recomendação **por inteiro**, sem implementações parciais.
+   - Se uma recomendação determinar a migração de regras de negócio da camada de dados para controllers e/ou services (ex: cálculos de pedidos **e** cálculos de relatórios/descontos), migre **todos os domínios citados** — nunca deixe cálculos de domínio dentro de um Model apenas movendo o arquivo para `models/`.
+2. **Adapte a Estratégia ao Contexto do Projeto**:
+   - **Monolito desestruturado ou God Class**: crie a estrutura MVC completa (`config/`, `database/`, `models/`, `services/` quando houver regras/cálculos de domínio, `controllers/`, `routes/` ou `views/`, `middlewares/`, entry point limpo) e remova os arquivos monolíticos obsoletos.
+   - **Projeto parcialmente organizado**: preserve o que já funciona bem, crie as camadas ausentes (ex: `controllers/`, `services/`, `config/`, `middlewares/`), extraia regras de negócio de rotas inchadas, corrija módulos com domínios misturados e elimine todos os anti-patterns sem quebrar a organização existente.
+3. **Aplique as Camadas MVC e Elimine os Findings**:
    - **Config**: extraia todas as credenciais e parâmetros de ambiente para um módulo de configuração lendo variáveis de ambiente com fallbacks seguros (sem introduzir dependências não instaladas).
-   - **Models**: isole toda persistência e consultas SQL/ORM nos Models, usando queries parametrizadas, JOINs/eager loading (eliminando N+1), hashing seguro de senhas e omitindo campos sensíveis da serialização.
-   - **Controllers**: concentre o fluxo de aplicação e regras de negócio nos Controllers, **sem SQL bruto** e sem acesso direto a drivers de banco.
+   - **Models**: isole **exclusivamente** persistência, queries SQL/ORM parametrizadas, JOINs/eager loading (eliminando N+1), hashing seguro de senhas e serialização sanitizada — **nunca** inclua regras de negócio procedurais (como faixas de desconto, cálculos financeiros, ticket médio ou orquestração) no mesmo método que executa consultas SQL.
+   - **Services (`services/`)**: extraia regras de negócio, cálculos de domínio reutilizáveis (ex: descontos progressivos, agregações de relatórios, pagamentos, criptografia, cache) para módulos dedicados em `services/`, consumindo dados brutos dos Models.
+   - **Controllers**: concentre o fluxo de aplicação e orquestração chamando Services e Models, **sem SQL bruto**, sem acesso direto a drivers de banco e sem atuar como mero passthrough para um Model que ainda carrega lógica de negócio.
    - **Views / Routes**: mantenha rotas enxutas, preservando **100% dos endpoints, métodos HTTP e contratos originais**.
    - **Middlewares / Error Handlers**: implemente tratamento centralizado de erros e remova bare `except:` / blocos repetitivos.
    - **APIs Deprecated**: substitua todas as chamadas obsoletas detectadas pelo equivalente moderno da stack.
    - **Entry Point**: mantenha um composition root limpo que inicializa banco, registra middlewares e conecta rotas.
-3. **Verificação Pós-Refatoração (Zero Anti-Patterns)**:
-   - Revise os arquivos finais garantindo que nenhum anti-pattern da Fase 2 permaneceu (incluindo arquivos auxiliares como `utils/`, `seed`, `services/`).
-4. **Validação Funcional Obrigatória**:
+4. **Verificação Pós-Refatoração (Zero Anti-Patterns)**:
+   - Faça uma conferência item a item de **todos os findings da Fase 2** contra o código refatorado, verificando explicitamente se cada recomendação foi cumprida integralmente (incluindo `models/`, `services/`, `controllers/`, `routes/`, `utils/` e `seed`).
+   - Confirme que nenhum Model mistura consultas SQL com cálculos de regra de negócio.
+5. **Validação Funcional Obrigatória**:
    - Verifique que a aplicação inicia sem erros de sintaxe, importação ou runtime.
    - Exercite os endpoints originais (via test client nativo do framework ou subindo o servidor em background, executando requisições HTTP e encerrando o processo ao final).
    - Se qualquer erro ocorrer, corrija e valide novamente antes de concluir.
-5. **Emita o Sumário Final**:
+6. **Emita o Sumário Final**:
 
 ```text
 ================================

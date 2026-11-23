@@ -43,11 +43,15 @@ Este guia estabelece as regras estruturais e responsabilidades das camadas para 
 
 ### Models (`models/`)
 - **Faz**: abstrai persistência de cada entidade de domínio (1 arquivo por domínio), executa queries parametrizadas ou operações ORM otimizadas (JOINs / eager loading), aplica hash seguro de senhas e serializa dados **omitindo campos sensíveis**.
-- **Não faz**: **nunca** importa objetos HTTP (`request`, `res`, `jsonify`), nunca decide status codes HTTP e nunca concentra múltiplos domínios no mesmo arquivo.
+- **Não faz**: **nunca** importa objetos HTTP (`request`, `res`, `jsonify`), nunca decide status codes HTTP, nunca concentra múltiplos domínios no mesmo arquivo e **nunca mistura regras de negócio procedurais (ex: cálculo de descontos progressivos, faturamento líquido, ticket médio ou orquestração de fluxo) com queries SQL**.
+
+### Services (`services/`)
+- **Faz**: encapsula regras de negócio reutilizáveis, cálculos financeiros/estatísticos de domínio (ex: descontos por faixa, consolidação de relatórios, processamento de pagamentos, criptografia, cache, notificações), consumindo dados brutos dos Models e mantendo alta testabilidade unitária sem dependência de HTTP ou SQL.
+- **Não faz**: não escreve SQL bruto diretamente nem manipula objetos de requisição/resposta HTTP (`request`, `res`, `jsonify`).
 
 ### Controllers (`controllers/`)
-- **Faz**: concentra o fluxo da aplicação, valida entradas de negócio, coordena chamadas a um ou mais Models/Services e devolve o resultado estruturado para a camada de rota/view.
-- **Não faz**: **nunca** escreve SQL bruto, nunca acessa diretamente drivers/cursores de banco de dados e nunca duplica lógica que pertence a um Model ou Service.
+- **Faz**: concentra o fluxo da aplicação, valida entradas de negócio, coordena chamadas a Services e Models e devolve o resultado estruturado para a camada de rota/view.
+- **Não faz**: **nunca** escreve SQL bruto, nunca acessa diretamente drivers/cursores de banco de dados e nunca deve atuar como mero passthrough para um Model que ainda contém regras de negócio procedurais.
 
 ### Views / Routes (`routes/` ou `views/`)
 - **Faz**: mapeia URLs e métodos HTTP para os métodos de Controller correspondentes (ex: Flask Blueprints, Express Routers), separando um arquivo de rotas por domínio sem duplicar registros de URL.

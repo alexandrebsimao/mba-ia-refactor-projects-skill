@@ -22,6 +22,7 @@ mba-ia-refactor-projects-skill/
 │   │   ├── config/settings.py
 │   │   ├── database/connection.py
 │   │   ├── models/
+│   │   ├── services/
 │   │   ├── controllers/
 │   │   ├── routes/
 │   │   ├── middlewares/error_handler.py
@@ -163,7 +164,7 @@ A skill alcança independência de stack e portabilidade (copiável entre projet
   - `Views / Routes`: Adaptação do protocolo HTTP (`add_url_rule` / Blueprints no Flask, `express.Router` no Express, etc.).
   - `Config`: Centralização de variáveis de ambiente nativamente (`os.getenv` / `process.env`) sem exigir dependências extras.
   - `Middlewares`: Interceptação global de erros (`@app.errorhandler` ou Express Error Middleware).
-- **Playbook poliglota**: O arquivo `refactoring-playbook.md` fornece **10 padrões concretos** de transformação Antes/Depois em Python e Node.js.
+- **Playbook poliglota**: O arquivo `refactoring-playbook.md` fornece **11 padrões concretos** de transformação Antes/Depois em Python e Node.js (incluindo extração de regras de negócio procedurais de Models para Services).
 
 ### 4. Desafios Encontrados e Como Foram Resolvidos
 
@@ -220,12 +221,14 @@ Os relatórios detalhados gerados pela Fase 2 estão disponíveis em:
       │   ├── produto_model.py      # Queries 100% parametrizadas para produtos
       │   ├── usuario_model.py      # Hash Werkzeug PBKDF2 + proteção de senhas
       │   ├── pedido_model.py       # Resolução N+1 com JOINs consolidados
-      │   └── relatorio_model.py    # Agregações financeiras e métricas de banco
+      │   └── relatorio_model.py    # Apenas SQL agregado (métricas brutas de vendas e contagens)
+      ├── services/
+      │   └── relatorio_service.py  # Regras de negócio (desconto progressivo, faturamento líquido e ticket médio)
       ├── controllers/
       │   ├── produto_controller.py # Validações de input e orquestração
       │   ├── usuario_controller.py # Fluxo de usuários e login seguro
       │   ├── pedido_controller.py  # Gestão transacional de pedidos e estoque
-      │   ├── relatorio_controller.py
+      │   ├── relatorio_controller.py # Orquestração HTTP delegando ao RelatorioService
       │   ├── health_controller.py  # Health check sanitizado (sem vazar segredos)
       │   └── admin_controller.py   # Reset controlado (sem backdoor SQL)
       ├── routes/

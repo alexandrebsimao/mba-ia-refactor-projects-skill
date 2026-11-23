@@ -1,48 +1,30 @@
 from src.database.connection import get_db_connection
 
-class RelatorioModel:
-    DISCOUNT_TIERS = [
-        (10000.0, 0.10),
-        (5000.0, 0.05),
-        (1000.0, 0.02)
-    ]
 
+class RelatorioModel:
     @staticmethod
-    def get_vendas_data():
+    def get_vendas_metrics():
+        """Retorna métricas brutas agregadas da tabela de pedidos em uma única consulta SQL."""
         db = get_db_connection()
         cursor = db.cursor()
 
-        cursor.execute("SELECT COUNT(*) FROM pedidos")
-        total_pedidos = cursor.fetchone()[0] or 0
-
-        cursor.execute("SELECT SUM(total) FROM pedidos")
-        faturamento_val = cursor.fetchone()[0]
-        faturamento = float(faturamento_val) if faturamento_val is not None else 0.0
-
-        cursor.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'pendente'")
-        pendentes = cursor.fetchone()[0] or 0
-
-        cursor.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'aprovado'")
-        aprovados = cursor.fetchone()[0] or 0
-
-        cursor.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'cancelado'")
-        cancelados = cursor.fetchone()[0] or 0
-
-        desconto = 0.0
-        for threshold, rate in RelatorioModel.DISCOUNT_TIERS:
-            if faturamento > threshold:
-                desconto = faturamento * rate
-                break
+        cursor.execute("""
+            SELECT
+                COUNT(*) AS total_pedidos,
+                COALESCE(SUM(total), 0.0) AS faturamento_bruto,
+                COALESCE(SUM(CASE WHEN status = 'pendente' THEN 1 ELSE 0 END), 0) AS pedidos_pendentes,
+                COALESCE(SUM(CASE WHEN status = 'aprovado' THEN 1 ELSE 0 END), 0) AS pedidos_aprovados,
+                COALESCE(SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END), 0) AS pedidos_cancelados
+            FROM pedidos
+        """)
+        row = cursor.fetchone()
 
         return {
-            "total_pedidos": total_pedidos,
-            "faturamento_bruto": round(faturamento, 2),
-            "desconto_aplicavel": round(desconto, 2),
-            "faturamento_liquido": round(faturamento - desconto, 2),
-            "pedidos_pendentes": pendentes,
-            "pedidos_aprovados": aprovados,
-            "pedidos_cancelados": cancelados,
-            "ticket_medio": round(faturamento / total_pedidos, 2) if total_pedidos > 0 else 0.0
+            "total_pedidos": int(row["total_pedidos"] or 0),
+            "faturamento_bruto": float(row["faturamento_bruto"] or 0.0),
+            "pedidos_pendentes": int(row["pedidos_pendentes"] or 0),
+            "pedidos_aprovados": int(row["pedidos_aprovados"] or 0),
+            "pedidos_cancelados": int(row["pedidos_cancelados"] or 0),
         }
 
     @staticmethod
@@ -58,5 +40,5 @@ class RelatorioModel:
         return {
             "produtos": produtos,
             "usuarios": usuarios,
-            "pedidos": pedidos
+            "pedidos": pedidos,
         }

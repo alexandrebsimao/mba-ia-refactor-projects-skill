@@ -1,6 +1,6 @@
 # Playbook de Refatoração (Padrões de Transformação Antes / Depois)
 
-Este playbook fornece **10 padrões concretos de transformação** com exemplos de código **Antes** e **Depois** aplicáveis à **Fase 3** da Skill `refactor-arch` em múltiplas stacks (Python, Node.js e conceitos portáveis para outras linguagens).
+Este playbook fornece **11 padrões concretos de transformação** com exemplos de código **Antes** e **Depois** aplicáveis à **Fase 3** da Skill `refactor-arch` em múltiplas stacks (Python, Node.js e conceitos portáveis para outras linguagens).
 
 ---
 
@@ -294,4 +294,66 @@ try {
     await db.run("ROLLBACK");
     throw err;
 }
+```
+
+---
+
+## Padrão 11: Extração de Lógica de Negócio Procedural da Camada de Dados (Model → Service + Controller)
+
+### Antes (Model Misturando SQL e Regras de Negócio)
+```python
+# models/report_model.py (ANTI-PATTERN: SQL + regra de desconto no mesmo método)
+class ReportModel:
+    DISCOUNT_TIERS = [(10000.0, 0.10), (5000.0, 0.05), (1000.0, 0.02)]
+
+    @staticmethod
+    def get_sales_report():
+        row = db.execute("SELECT COUNT(*), COALESCE(SUM(total), 0) FROM orders").fetchone()
+        total_orders, gross_revenue = row[0], float(row[1])
+        discount = 0.0
+        for threshold, rate in ReportModel.DISCOUNT_TIERS:
+            if gross_revenue > threshold:
+                discount = gross_revenue * rate
+                break
+        return {"gross": gross_revenue, "discount": discount, "net": gross_revenue - discount}
+```
+
+### Depois (Model Somente Dados + Service com Regra de Negócio + Controller Orquestrador)
+```python
+# models/report_model.py (Apenas persistência / SQL agregado)
+class ReportModel:
+    @staticmethod
+    def get_sales_metrics():
+        row = db.execute("SELECT COUNT(*), COALESCE(SUM(total), 0) FROM orders").fetchone()
+        return {"total_orders": row[0] or 0, "gross_revenue": float(row[1] or 0.0)}
+
+# services/report_service.py (Regra de negócio pura e testável em isolamento)
+class ReportService:
+    DISCOUNT_TIERS = [(10000.0, 0.10), (5000.0, 0.05), (1000.0, 0.02)]
+
+    @staticmethod
+    def calculate_discount(gross_revenue):
+        for threshold, rate in ReportService.DISCOUNT_TIERS:
+            if gross_revenue > threshold:
+                return gross_revenue * rate
+        return 0.0
+
+    @staticmethod
+    def generate_sales_report():
+        metrics = ReportModel.get_sales_metrics()
+        gross = metrics["gross_revenue"]
+        discount = ReportService.calculate_discount(gross)
+        return {
+            "total_orders": metrics["total_orders"],
+            "gross": round(gross, 2),
+            "discount": round(discount, 2),
+            "net": round(gross - discount, 2),
+        }
+
+# controllers/report_controller.py (Orquestração HTTP)
+class ReportController:
+    @staticmethod
+    def sales_report():
+        report = ReportService.generate_sales_report()
+        return jsonify({"data": report, "success": True}), 200
 ```
